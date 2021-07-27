@@ -9,6 +9,7 @@ use yaml_rust::Yaml;
 struct ConfigFeatures {
     lower_case_states: bool,
     introspection: bool,
+    transition_callbacks: bool,
 }
 
 struct Config {
@@ -62,6 +63,12 @@ impl Config {
                 .parse()
                 .unwrap(),
             introspection: (&features_yaml["introspection"])
+                .as_bool()
+                .unwrap()
+                .to_string()
+                .parse()
+                .unwrap(),
+            transition_callbacks: (&features_yaml["transition_callbacks"])
                 .as_bool()
                 .unwrap()
                 .to_string()
