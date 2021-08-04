@@ -34,6 +34,7 @@ codegen:
       state_enum_suffix: State
       state_enum_traits: Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord
       transition_method_name: transition
+      transition_callback_type: Fn(String, String, String)
       change_state_method_name: change_state
       state_stack_var_name: state_stack
       state_stack_push_method_name: state_stack_push

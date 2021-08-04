@@ -6,6 +6,8 @@ use super::super::symbol_table::*;
 use super::super::visitors::*;
 use yaml_rust::Yaml;
 
+const TRANSITION_CALLBACKS: [&str; 4] = ["pre_transition", "post_transition", "pre_state_change", "post_state_change"];
+
 struct ConfigFeatures {
     lower_case_states: bool,
     introspection: bool,
@@ -46,6 +48,7 @@ struct Config {
     state_enum_suffix: String,
     state_enum_traits: String,
     transition_method_name: String,
+    transition_callback_type: String,
     change_state_method_name: String,
     state_stack_push_method_name: String,
     state_stack_pop_method_name: String,
@@ -184,6 +187,10 @@ impl Config {
                 .unwrap_or_default()
                 .to_string(),
             transition_method_name: (&code_yaml["transition_method_name"])
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            transition_callback_type: (&code_yaml["transition_callback_type"])
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
@@ -2013,6 +2020,18 @@ impl AstVisitor for RustVisitor {
             &self.config.state_var_name, self.config.frame_state_type_name
         ));
 
+        // generate transition callbacks
+        if self.config.config_features.transition_callbacks {
+            for prefix in TRANSITION_CALLBACKS {
+                self.newline();
+                self.add_code(&format!(
+                    "{}_callback: Option<Box<dyn {}>>,",
+                    prefix,
+                    self.config.transition_callback_type
+                ));
+            }
+        }
+
         // generate state context variable
 
         if self.generate_state_context {
@@ -2121,6 +2140,14 @@ impl AstVisitor for RustVisitor {
                 system_node.name,
                 self.format_state_name(&self.first_state_name)
             ));
+                
+            // initialize callback fields
+            if self.config.config_features.transition_callbacks {
+                for prefix in TRANSITION_CALLBACKS {
+                    self.newline();
+                    self.add_code(&format!("{}_callback: None,", prefix));
+                }
+            }
 
             // generate history mechanism
             if self.generate_state_stack {
@@ -2165,6 +2192,28 @@ impl AstVisitor for RustVisitor {
         }
 
         // end of generate constructor
+
+        // generate callback setters
+        if self.config.config_features.transition_callbacks {
+            for prefix in TRANSITION_CALLBACKS {
+                self.newline();
+                self.add_code(&format!(
+                    "pub fn set_{}_callback(&mut self, callback: impl {} + 'static) {{",
+                    prefix,
+                    self.config.transition_callback_type
+                ));
+                self.indent();
+                self.newline();
+                self.add_code(&format!(
+                    "self.{}_callback = Some(Box::new(callback));",
+                    prefix
+                ));
+                self.outdent();
+                self.newline();
+                self.add_code("}");
+                self.newline();
+            }
+        }
 
         self.serialize.push("".to_string());
         self.serialize.push("Bag _serialize__do() {".to_string());
